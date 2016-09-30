@@ -11,7 +11,7 @@ defmodule Effects do
   def bind(%Effect{effect: e, next: n}, f), do: effect(e, &bind(n.(&1), f))
   def mv ~>> func, do: bind(mv, func)
 end
-
+    
 defmodule PizzaService do
   @moduledoc """
   Service emulating an API you can use to order pizzas. In real life this
@@ -63,33 +63,18 @@ defmodule PizzaService do
   end
 end
 
-"""
-Tasks:?!?!?!
- * Refactor existing API to use effects.
-  * Change side-effecting API to return effect objects.
-  * Create interpreter that calls out to the real service.
- * Add test interpreter
-"""
-
 defmodule Workshop do
   @moduledoc """
-
   """
   
-  def verify_order(id, toppings) do
-    EffectAPI.info(id) ~>> fn pizza ->
-      pure(pizza.toppings == toppings)
-    end
-  end
-  
+  import Effects
+
   defmodule RegularImplementation do
     @moduledoc """
-
     """
     
     defmodule RegularAPI do
       @moduledoc """
-
       """
       def order(toppings) do
         GenServer.call(:pizza, {:order, toppings})
@@ -105,14 +90,14 @@ defmodule Workshop do
 
       orderResponse = RegularAPI.order([:cheese, :ham, :pineapple])
       orderId = elem(orderResponse, 1)[:id]
-
-      RegularAPI.info(orderId)
+		
+      IO.puts "Regular API Order:"
+      IO.inspect RegularAPI.info(orderId)
     end
   end
   
   defmodule EffectImplementation do
     defmodule EffectAPI do
-      import Effects
       def pizza(toppings) do
         effect({:order, toppings}, &pure/1)
       end
@@ -130,7 +115,7 @@ defmodule Workshop do
       def interpret(%Effects.Effect{
         effect: {:order, toppings},
         next: next,
-      } = effect) do
+      }) do
         result = GenServer.call(:pizza, {:order, toppings})
         interpret(next.(result))
       end
@@ -144,21 +129,31 @@ defmodule Workshop do
       end
     end
     
+    def verify_order(id, toppings) do
+      EffectAPI.info(id) ~>> fn {:ok, pizza} ->
+        pure(pizza.toppings == toppings)
+      end
+    end
+    
     def run() do
       PizzaService.init()
       
       toppings = [:cheese, :ham, :pineapple]
       order = EffectAPI.pizza(toppings)
-      verification = order ~>> fn pizza ->
+      verification = order ~>> fn {:ok, pizza} ->
         verify_order(pizza.id, toppings)
       end
       
-      Interpreter.interpret(order)
-      Interpreter.interpret(verification)
+      IO.puts "Effect API Order:"
+      IO.inspect Interpreter.interpret(order)
+      IO.puts "Order verification:"
+      IO.inspect Interpreter.interpret(verification)
     end
   end
-  
+    
   defmodule EffectImplementationTest do
+    import ExUnit.Assertions
+
     defmodule TestInterpreter do
       def interpret(_, %Effects.Pure{value: value}) do
         value
@@ -169,7 +164,7 @@ defmodule Workshop do
         next: next,
       }) do
         result = %{id: Enum.count(pizzas), toppings: toppings}
-        interpret({[result|pizzas]}, next.(result))
+        interpret({[result|pizzas]}, next.({:ok, result}))
       end
       
       def interpret({pizzas} = state, %Effects.Effect{
@@ -184,26 +179,32 @@ defmodule Workshop do
     end
     
     def test() do
-      import ExUnit.Assertions
+      IO.puts "Running tests ..."
       
       # Test order fetching
       order = %{id: 5, toppings: [:cheese]}
       orders = [order]
       state = {orders}
 
-      result = TestInterpreter.interpret(state, EffectAPI.info(5))
+      result = TestInterpreter.interpret(state, EffectImplementation.EffectAPI.info(5))
       assert(result == {:ok, order}, "Expected pizza.")
 
-      result = TestInterpreter.interpret(state, EffectAPI.info(0))
+      result = TestInterpreter.interpret(state, EffectImplementation.EffectAPI.info(0))
       assert(result == {:error, :no_such_order}, "Expected error.")
 
-      result = TestInterpreter.interpret(state, verify_order(5, [:cheese]))
+      result = TestInterpreter.interpret(state, EffectImplementation.verify_order(5, [:cheese]))
       assert(result == true)
 
-      result = TestInterpreter.interpret {[]}, EffectAPI.order([:cheese]) ~>> fn x ->
-        verify_order(x.id, [:cheese])
+      result = TestInterpreter.interpret {[]}, EffectImplementation.EffectAPI.pizza([:cheese]) ~>> fn {:ok, pizza} ->
+        EffectImplementation.verify_order(pizza.id, [:cheese])
       end
       assert(result == true)
+    
+      IO.puts "Done running tests ..."
     end
   end
 end
+
+Workshop.RegularImplementation.run()
+Workshop.EffectImplementation.run()
+Workshop.EffectImplementationTest.test()
