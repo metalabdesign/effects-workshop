@@ -96,7 +96,12 @@ defmodule Workshop do
     
     def run() do
       PizzaService.init()
-      # TODO... how do I run this?
+
+      orderResponse = RegularAPI.order([:cheese, :ham, :pineapple])
+      orderId = elem(orderResponse, 1)[:id]
+
+      orderInfo = RegularAPI.info(orderId)
+      elem(orderResponse, 1)
     end
   end
   
