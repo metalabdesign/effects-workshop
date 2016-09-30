@@ -76,6 +76,12 @@ defmodule Workshop do
 
   """
   
+  def verify_order(id, toppings) do
+    EffectAPI.info(id) ~>> fn pizza ->
+      pure(pizza.toppings == toppings)
+    end
+  end
+  
   defmodule RegularImplementation do
     @moduledoc """
 
@@ -140,8 +146,15 @@ defmodule Workshop do
     
     def run() do
       PizzaService.init()
-      program = EffectAPI.pizza([:cheese, :ham, :pineapple])
-      Interpreter.interpret(program)
+      
+      toppings = [:cheese, :ham, :pineapple]
+      order = EffectAPI.pizza(toppings)
+      verification = order ~>> fn pizza ->
+        verify_order(pizza.id, toppings)
+      end
+      
+      Interpreter.interpret(order)
+      Interpreter.interpret(verification)
     end
   end
   
@@ -172,15 +185,25 @@ defmodule Workshop do
     
     def test() do
       import ExUnit.Assertions
-
+      
       # Test order fetching
       order = %{id: 5, toppings: [:cheese]}
       orders = [order]
       state = {orders}
+
       result = TestInterpreter.interpret(state, EffectAPI.info(5))
       assert(result == {:ok, order}, "Expected pizza.")
+
       result = TestInterpreter.interpret(state, EffectAPI.info(0))
       assert(result == {:error, :no_such_order}, "Expected error.")
+
+      result = TestInterpreter.interpret(state, verify_order(5, [:cheese]))
+      assert(result == true)
+
+      result = TestInterpreter.interpret {[]}, EffectAPI.order([:cheese]) ~>> fn x ->
+        verify_order(x.id, [:cheese])
+      end
+      assert(result == true)
     end
   end
 end
