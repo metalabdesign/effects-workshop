@@ -100,8 +100,7 @@ defmodule Workshop do
       orderResponse = RegularAPI.order([:cheese, :ham, :pineapple])
       orderId = elem(orderResponse, 1)[:id]
 
-      orderInfo = RegularAPI.info(orderId)
-      elem(orderResponse, 1)
+      RegularAPI.info(orderId)
     end
   end
   
