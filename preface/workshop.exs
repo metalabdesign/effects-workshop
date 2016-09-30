@@ -63,101 +63,120 @@ defmodule PizzaService do
   end
 end
 
+"""
+Tasks:?!?!?!
+ * Refactor existing API to use effects.
+  * Change side-effecting API to return effect objects.
+  * Create interpreter that calls out to the real service.
+ * Add test interpreter
+"""
+
 defmodule Workshop do
   @moduledoc """
 
   """
-  defmodule RegularAPI do
+  
+  defmodule RegularImplementation do
     @moduledoc """
 
     """
-    def order(toppings) do
-      GenServer.call(:pizza, {:order, toppings})
-    end
+    
+    defmodule RegularAPI do
+      @moduledoc """
 
-    def info(id) do
-      GenServer.call(:pizza, {:info, id})
-    end
-  end
+      """
+      def order(toppings) do
+        GenServer.call(:pizza, {:order, toppings})
+      end
 
-  defmodule EffectAPI do
-    import Effects
-    def pizza(toppings) do
-      effect({:order, toppings}, &pure/1)
-    end
-
-    def info(id) do
-      effect({:info, id}, &pure/1)
-    end
-  end
-
-  defmodule Interpreter do
-    def interpret(%Effects.Pure{value: value}) do
-      value
-    end
-    def interpret(%Effects.Effect{
-      effect: {:order, toppings},
-      next: next,
-    } = effect) do
-      result = GenServer.call(:pizza, {:order, toppings})
-      interpret(next.(result))
-    end
-    def interpret(%Effects.Effect{
-      effect: {:info, id},
-      next: next,
-    }) do
-      result = GenServer.call(:pizza, {:info, id})
-      interpret(next.(result))
-    end
-  end
-
-  defmodule TestInterpreter do
-    def interpret(_, %Effects.Pure{value: value}) do
-      value
-    end
-    def interpret({pizzas}, %Effects.Effect{
-      effect: {:order, toppings},
-      next: next,
-    }) do
-      result = %{id: Enum.count(pizzas), toppings: toppings}
-      interpret({[result|pizzas]}, next.(result))
-    end
-    def interpret({pizzas} = state, %Effects.Effect{
-      effect: {:info, id},
-      next: next,
-    }) do
-      case Enum.find(pizzas, fn pizza -> pizza.id == id end) do
-        nil -> interpret(state, next.({:error, :no_such_order}))
-        order -> interpret(state, next.({:ok, order}))
+      def info(id) do
+        GenServer.call(:pizza, {:info, id})
       end
     end
+    
+    def run() do
+      PizzaService.init()
+      # TODO... how do I run this?
+    end
   end
+  
+  defmodule EffectImplementation do
+    defmodule EffectAPI do
+      import Effects
+      def pizza(toppings) do
+        effect({:order, toppings}, &pure/1)
+      end
 
-  """
-  Tasks:?!?!?!
-   * Refactor existing API to use effects.
-    * Change side-effecting API to return effect objects.
-    * Create interpreter that calls out to the real service.
-   * Add test interpreter
-  """
-
-  def test() do
-    import ExUnit.Assertions
-
-    # Test order fetching
-    order = %{id: 5, toppings: [:cheese]}
-    orders = [order]
-    state = {orders}
-    result = TestInterpreter.interpret(state, EffectAPI.info(5))
-    assert(result == {:ok, order}, "Expected pizza.")
-    result = TestInterpreter.interpret(state, EffectAPI.info(0))
-    assert(result == {:error, :no_such_order}, "Expected error.")
+      def info(id) do
+        effect({:info, id}, &pure/1)
+      end
+    end
+    
+    defmodule Interpreter do
+      def interpret(%Effects.Pure{value: value}) do
+        value
+      end
+      
+      def interpret(%Effects.Effect{
+        effect: {:order, toppings},
+        next: next,
+      } = effect) do
+        result = GenServer.call(:pizza, {:order, toppings})
+        interpret(next.(result))
+      end
+      
+      def interpret(%Effects.Effect{
+        effect: {:info, id},
+        next: next,
+      }) do
+        result = GenServer.call(:pizza, {:info, id})
+        interpret(next.(result))
+      end
+    end
+    
+    def run() do
+      PizzaService.init()
+      program = EffectAPI.pizza([:cheese, :ham, :pineapple])
+      Interpreter.interpret(program)
+    end
   end
+  
+  defmodule EffectImplementationTest do
+    defmodule TestInterpreter do
+      def interpret(_, %Effects.Pure{value: value}) do
+        value
+      end
+      
+      def interpret({pizzas}, %Effects.Effect{
+        effect: {:order, toppings},
+        next: next,
+      }) do
+        result = %{id: Enum.count(pizzas), toppings: toppings}
+        interpret({[result|pizzas]}, next.(result))
+      end
+      
+      def interpret({pizzas} = state, %Effects.Effect{
+        effect: {:info, id},
+        next: next,
+      }) do
+        case Enum.find(pizzas, fn pizza -> pizza.id == id end) do
+          nil -> interpret(state, next.({:error, :no_such_order}))
+          order -> interpret(state, next.({:ok, order}))
+        end
+      end
+    end
+    
+    def test() do
+      import ExUnit.Assertions
 
-  def run() do
-    PizzaService.init()
-    program = EffectAPI.pizza([:cheese, :ham, :pineapple])
-    Interpreter.interpret(program)
+      # Test order fetching
+      order = %{id: 5, toppings: [:cheese]}
+      orders = [order]
+      state = {orders}
+      result = TestInterpreter.interpret(state, EffectAPI.info(5))
+      assert(result == {:ok, order}, "Expected pizza.")
+      result = TestInterpreter.interpret(state, EffectAPI.info(0))
+      assert(result == {:error, :no_such_order}, "Expected error.")
+    end
   end
-
 end
