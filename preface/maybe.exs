@@ -1,28 +1,54 @@
 defmodule Maybe do
+  @moduledoc """
+  A simple implementation of the Maybe monad.
+  """
+
   defmodule Just do
+    @moduledoc """
+
+    """
     defstruct [:value]
   end
 
   defmodule Nothing do
+    @moduledoc """
+
+    """
     defstruct []
   end
 
+  @doc """
+
+  """
   def return(val) when is_nil(val) do
     %Nothing{}
   end
 
+  @doc """
+
+  """
   def return(val) do
     %Just{value: val}
   end
 
+  @doc """
+
+  """
   def bind(%Just{value: value}, func) do
     apply(func, [value])
   end
 
+  @doc """
+
+  """
   def bind(%Nothing{}, _) do
     %Nothing{}
   end
 
+  @doc """
+  Infix operator for invoking `bind`. This just makes chaining `bind` operations
+  together all-around more pleasant.
+  """
   def mv ~>> func do
     bind(mv, func)
   end

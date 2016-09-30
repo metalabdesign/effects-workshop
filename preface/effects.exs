@@ -1,28 +1,54 @@
 defmodule Effects do
+  @moduledoc """
+  A simple implementation of the Effect monad.
+  """
+
   defmodule Pure do
+    @moduledoc """
+
+    """
     defstruct [:value]
   end
 
   defmodule Effect do
+    @moduledoc """
+
+    """
     defstruct [:effect, :next]
   end
 
-  def pure(val) do
-    %Pure{value: val}
+  @doc """
+  Create a new Pure from the given value.
+  """
+  def pure(value) do
+    %Pure{value: value}
   end
 
-  def effect(eff, next) do
-    %Effect{effect: eff, next: next}
+  @doc """
+  Create a new Effect.
+  """
+  def effect(effect, next) do
+    %Effect{effect: effect, next: next}
   end
 
+  @doc """
+
+  """
   def bind(%Pure{value: val}, f) do
    f.(val)
   end
 
+  @doc """
+
+  """
   def bind(%Effect{effect: eff, next: next}, f) do
     effect(eff, &bind(next.(&1), f))
   end
 
+  @doc """
+  Infix operator for invoking `bind`. This just makes chaining `bind` operations
+  together all-around more pleasant.
+  """
   def mv ~>> func do
     bind(mv, func)
   end
