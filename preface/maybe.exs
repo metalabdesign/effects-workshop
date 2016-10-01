@@ -62,7 +62,6 @@ defmodule Maybe.Example do
     IO.inspect({"5 -> ", return(5)})
 
     # Using monadic chaining.
-    double = fn val -> return(val * 2) end
     increment = fn val -> return(val + 1) end
     half = fn
       val when rem(val, 2) == 0 -> return(val / 2)
