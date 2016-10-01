@@ -1,3 +1,17 @@
+defmodule Maybe do
+  @moduledoc """
+  This is a compact version of the "Maybe" module. The complete code and
+  documentation can be found in `maybe.exs`.
+  """
+  defmodule Just do defstruct [:value] end
+  defmodule Nothing do defstruct [] end
+  def return(val) when is_nil(val) do %Nothing{} end
+  def return(val) do %Just{value: val} end
+  def bind(%Just{value: value}, func) do apply(func, [value]) end
+  def bind(%Nothing{}, _) do %Nothing{} end
+  def mv ~>> func do bind(mv, func) end
+end
+
 defmodule RecordService do
   def new_record(name, email, age) do
     %{name: name, email: email, age: age}
@@ -28,11 +42,17 @@ defmodule RecordService do
   end
 end
 
-# Normal implementation
-rec = RecordService.new_record("Billy", "billy@metalab.co", 31)
-rec = RecordService.set_age(rec, 20)
-if rec != nil do
-  rec = RecordService.set_name(rec, "Billy He")
-  rec = RecordService.set_email(rec, "billy@metalabdesign.com")
-  RecordService.print(rec)
+defmodule WorkshopMaybe do
+  def run_normal() do
+    # Normal implementation
+    rec = RecordService.new_record("Billy", "billy@metalab.co", 31)
+    rec = RecordService.set_age(rec, 32)
+    if rec != nil do
+      rec = RecordService.set_name(rec, "Billy He")
+      rec = RecordService.set_email(rec, "billy@metalabdesign.com")
+      RecordService.print(rec)
+    end
+  end
 end
+
+WorkshopMaybe.run_normal()
