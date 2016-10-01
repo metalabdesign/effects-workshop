@@ -42,17 +42,77 @@ defmodule RecordService do
   end
 end
 
-defmodule WorkshopMaybe do
-  def run_normal() do
-    # Normal implementation
+defmodule RecordExample.Normal do
+  def run() do
     rec = RecordService.new_record("Billy", "billy@metalab.co", 31)
+    rec = RecordService.set_name(rec, "Billy He")
     rec = RecordService.set_age(rec, 32)
     if rec != nil do
-      rec = RecordService.set_name(rec, "Billy He")
       rec = RecordService.set_email(rec, "billy@metalabdesign.com")
       RecordService.print(rec)
     end
   end
 end
 
-WorkshopMaybe.run_normal()
+RecordExample.Normal.run()
+
+defmodule RecordExample.Maybe do
+  import Maybe
+
+  def run() do
+    rec = return(RecordService.new_record("Billy", "billy@metalab.co", 31))
+    
+    rec = bind(rec, fn record ->
+      return(RecordService.set_name(record, "Billy He"))
+    end)
+
+    rec ~>> fn record ->
+      return(RecordService.set_age(record, 32))
+    end ~>> fn record ->
+      return(RecordService.set_email(record, "billy@metalabdesign.com"))
+    end ~>> fn record ->
+      return(RecordService.print(record))
+    end
+  end
+end
+
+RecordExample.Maybe.run()
+
+defmodule RecordExample.FunctionalMaybe do
+  import Maybe
+
+  def set_name(newName) do
+    fn record ->
+      return(RecordService.set_name(record, newName))
+    end
+  end
+
+  def set_email(newEmail) do
+    fn record ->
+      return(RecordService.set_email(record, newEmail))
+    end
+  end
+
+  def set_age(newAge) do
+    fn record ->
+      return(RecordService.set_age(record, newAge))
+    end
+  end
+
+  def print() do
+    fn record ->
+      return(RecordService.print(record))
+    end
+  end
+
+  def run() do
+    rec = return(RecordService.new_record("Billy", "billy@metalab.co", 31))
+
+    rec ~>> set_name("Billy He")
+        ~>> set_age(32)
+        ~>> set_email("billy@metalabdesign.com")
+        ~>> print()
+  end
+end
+
+RecordExample.FunctionalMaybe.run()
